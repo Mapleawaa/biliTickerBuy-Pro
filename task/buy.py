@@ -31,18 +31,18 @@ def get_qrcode_url(_request, order_id) -> str:
 
 
 def buy_stream(
-        tickets_info_str,
-        time_start,
-        interval,
-        mode,
-        total_attempts,
-        audio_path,
-        pushplusToken,
-        serverchanKey,
-        https_proxys,
-        ntfy_url=None,
-        ntfy_username=None,
-        ntfy_password=None,
+    tickets_info_str,
+    time_start,
+    interval,
+    mode,
+    total_attempts,
+    audio_path,
+    pushplusToken,
+    serverchanKey,
+    https_proxys,
+    ntfy_url=None,
+    ntfy_username=None,
+    ntfy_password=None,
 ):
     if bili_ticket_gt_python is None:
         yield "当前设备不支持本地过验证码，无法使用"
@@ -52,6 +52,7 @@ def buy_stream(
     left_time = total_attempts
     tickets_info = json.loads(tickets_info_str)
     is_hot = tickets_info["hotProject"]
+    detail = tickets_info["detail"]
     cookies = tickets_info["cookies"]
     phone = tickets_info.get("phone", None)
     tickets_info.pop("cookies", None)
@@ -76,15 +77,15 @@ def buy_stream(
         yield f"时间偏差已被设置为: {timeoffset}s"
         try:
             time_difference = (
-                    datetime.strptime(time_start, "%Y-%m-%dT%H:%M:%S").timestamp()
-                    - time.time()
-                    + timeoffset
+                datetime.strptime(time_start, "%Y-%m-%dT%H:%M:%S").timestamp()
+                - time.time()
+                + timeoffset
             )
         except ValueError:
             time_difference = (
-                    datetime.strptime(time_start, "%Y-%m-%dT%H:%M").timestamp()
-                    - time.time()
-                    + timeoffset
+                datetime.strptime(time_start, "%Y-%m-%dT%H:%M").timestamp()
+                - time.time()
+                + timeoffset
             )
         start_time = time.perf_counter()
         end_time = start_time + time_difference
@@ -221,27 +222,26 @@ def buy_stream(
 
             request_result, errno = result
             if errno == 0:
-
                 notifierManager = NotifierManager()
                 if pushplusToken:
                     notifierManager.regiseter_notifier(
                         "PushPlusNotifier",
                         PushPlusUtil.PushPlusNotifier(
-                            pushplusToken, "抢票成功", "前往订单中心付款吧"
-                        )
+                            pushplusToken, "抢票成功", f"前往订单中心付款吧: {detail}"
+                        ),
                     )
                 if serverchanKey:
                     notifierManager.regiseter_notifier(
-                        "ServerChanNotifier", 
+                        "ServerChanNotifier",
                         ServerChanUtil.ServerChanNotifier(
-                            serverchanKey, "抢票成功", "前往订单中心付款吧"
-                        )
+                            serverchanKey, "抢票成功", f"前往订单中心付款吧: {detail}"
+                        ),
                     )
                 if ntfy_url:
                     # 使用重复通知功能，每10秒发送一次，持续5分钟
                     NtfyUtil.send_repeat_message(
-                       ntfy_url,
-                        "抢票成功，bilibili会员购，请尽快前往订单中心付款",
+                        ntfy_url,
+                        f"抢票成功，bilibili会员购，请尽快前往订单中心付款: {detail}",
                         title="Bili Ticket Payment Reminder",
                         username=ntfy_username,
                         password=ntfy_password,
@@ -250,7 +250,7 @@ def buy_stream(
                     )
                     yield "已启动重复通知，将每15秒发送一次提醒，持续5分钟"
                 notifierManager.start_all()
-                
+
                 yield "3）抢票成功，弹出付款二维码"
                 qrcode_url = get_qrcode_url(
                     _request,
@@ -279,6 +279,20 @@ def buy_stream(
 
 
 def buy(
+    tickets_info_str,
+    time_start,
+    interval,
+    mode,
+    total_attempts,
+    audio_path,
+    pushplusToken,
+    serverchanKey,
+    https_proxys,
+    ntfy_url=None,
+    ntfy_username=None,
+    ntfy_password=None,
+):
+    for msg in buy_stream(
         tickets_info_str,
         time_start,
         interval,
@@ -288,43 +302,29 @@ def buy(
         pushplusToken,
         serverchanKey,
         https_proxys,
-        ntfy_url=None,
-        ntfy_username=None,
-        ntfy_password=None,
-):
-    for msg in buy_stream(
-            tickets_info_str,
-            time_start,
-            interval,
-            mode,
-            total_attempts,
-            audio_path,
-            pushplusToken,
-            serverchanKey,
-            https_proxys,
-            ntfy_url,
-            ntfy_username,
-            ntfy_password,
+        ntfy_url,
+        ntfy_username,
+        ntfy_password,
     ):
         logger.info(msg)
 
 
 def buy_new_terminal(
-        endpoint_url,
-        filename,
-        tickets_info_str,
-        time_start,
-        interval,
-        mode,
-        total_attempts,
-        audio_path,
-        pushplusToken,
-        serverchanKey,
-        https_proxys,
-        ntfy_url=None,
-        ntfy_username=None,
-        ntfy_password=None,
-        terminal_ui="网页",
+    endpoint_url,
+    filename,
+    tickets_info_str,
+    time_start,
+    interval,
+    mode,
+    total_attempts,
+    audio_path,
+    pushplusToken,
+    serverchanKey,
+    https_proxys,
+    ntfy_url=None,
+    ntfy_username=None,
+    ntfy_password=None,
+    terminal_ui="网页",
 ) -> subprocess.Popen:
     command = [sys.executable]
     if not getattr(sys, "frozen", False):
